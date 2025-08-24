@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YouTube Shorts Feed</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
- <style>
-  body {
+  <style>
+    body {
   margin: 0;
   background: #000;
   overflow: hidden;
@@ -112,14 +112,14 @@ iframe {
   bottom: 20px;
 }
 
- </style>
+  </style>
 </head>
 <body>
   <div id="feed" class="feed"></div>
-  <div id="loader" class="loader" style="display: none;">Loading more...</div>
+  <div id="loader" class="loader" style="display: none;">Loading...</div>
 
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script>
+  <script >
     let players = [];
 let currentPage = 0;
 let isLoading = false;
@@ -128,6 +128,11 @@ let currentIndex = 0;
 const feed = document.getElementById("feed");
 const loader = document.getElementById("loader");
 
+// --- API URL Configuration ---
+// This ensures the frontend calls your live backend server.
+const API_BASE_URL = 'https://riseup.onrender.com';
+// ----------------------------
+
 // Fetch videos from the server API
 async function fetchVideos(page) {
   if (isLoading || !hasMore) return;
@@ -135,7 +140,7 @@ async function fetchVideos(page) {
   loader.style.display = 'block';
 
   try {
-    const res = await fetch(`/api/videos?page=${page}`);
+    const res = await fetch(`${API_BASE_URL}/api/videos?page=${page}`);
     const data = await res.json();
 
     if (data.videos.length > 0) {
@@ -224,8 +229,8 @@ feed.addEventListener("scroll", () => {
     }
   }
 
-  // Load more videos when the user scrolls near the end
-  if (scrollTop + clientHeight >= scrollHeight - 50) { // A small buffer
+  // Load more videos when user scrolls near the end
+  if (scrollTop + clientHeight >= scrollHeight - 50) {
     fetchVideos(currentPage);
   }
 });
