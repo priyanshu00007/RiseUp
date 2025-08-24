@@ -7,17 +7,24 @@ const app = express();
 // Render provides the PORT environment variable
 const PORT = process.env.PORT || 3000;
 
-// --- START: CRUCIAL CORS AND SHUFFLE FIX ---
-
-// This tells your server to ONLY allow requests from your live frontend.
+// --- CORS FIX ---
+// Allow both frontend and backend domains
 const corsOptions = {
-  origin: 'https://riseup-z79e.onrender.com', 
+  origin: [
+    'https://riseup-z79e.onrender.com',  // your frontend
+    'https://riseup.onrender.com'        // your backend (in case frontend is served from here too)
+  ],
   optionsSuccessStatus: 200
 };
-
 app.use(cors(corsOptions));
+// ----------------
 
-// This function shuffles the video array randomly.
+// Serve static files (HTML, CSS, JS, JSON)
+app.use(express.static('public'));
+
+let shortVideos = [];
+
+// Shuffle videos randomly
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -25,20 +32,15 @@ function shuffleArray(array) {
   }
 }
 
-// --- END: CRUCIAL CORS AND SHUFFLE FIX ---
-
-app.use(express.static('public'));
-
-let shortVideos = [];
-
+// Load JSON video data
 const loadVideoData = async () => {
   try {
     const dataPath = path.join(__dirname, 'public', 'youtube-videos-UC7iBB0bComGROocSnJ-_Xrw.json');
     const data = await fs.readFile(dataPath, 'utf8');
     const jsonData = JSON.parse(data);
-    
+
     shortVideos = jsonData.videos.filter(video => video.isShort);
-    shuffleArray(shortVideos); // Shuffle the videos
+    shuffleArray(shortVideos);
 
     console.log(`✅ Successfully loaded and shuffled ${shortVideos.length} short videos.`);
   } catch (error) {
@@ -47,18 +49,22 @@ const loadVideoData = async () => {
   }
 };
 
+// API endpoint with pagination
 app.get('/api/videos', (req, res) => {
   const page = parseInt(req.query.page) || 0;
   const limit = 5;
   const startIndex = page * limit;
   const endIndex = startIndex + limit;
+
   const results = shortVideos.slice(startIndex, endIndex);
+
   res.json({
     videos: results,
     hasMore: endIndex < shortVideos.length,
   });
 });
 
+// Start server
 app.listen(PORT, async () => {
   await loadVideoData();
   console.log(`🚀 Server is running on port ${PORT}`);
