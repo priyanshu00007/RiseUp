@@ -4,45 +4,41 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const app = express();
+// Render provides the PORT environment variable
 const PORT = process.env.PORT || 3000;
 
+// --- START: CRUCIAL CORS AND SHUFFLE FIX ---
+
+// This tells your server to ONLY allow requests from your live frontend.
 const corsOptions = {
-  origin: 'https://riseup-z79e.onrender.com', // Your frontend's live URL
+  origin: 'https://riseup-z79e.onrender.com', 
   optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
+
+// This function shuffles the video array randomly.
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+// --- END: CRUCIAL CORS AND SHUFFLE FIX ---
+
 app.use(express.static('public'));
 
 let shortVideos = [];
 
-// --- START: NEW SHUFFLE FUNCTION ---
-/**
- * Shuffles an array in place using the Fisher-Yates (aka Knuth) shuffle algorithm.
- * @param {Array} array The array to shuffle.
- */
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    // Pick a random index from 0 to i
-    const j = Math.floor(Math.random() * (i + 1));
-    // Swap the element at the random index with the current element
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-}
-// --- END: NEW SHUFFLE FUNCTION ---
-
-// Function to load, filter, and now shuffle the video data
 const loadVideoData = async () => {
   try {
     const dataPath = path.join(__dirname, 'public', 'youtube-videos-UC7iBB0bComGROocSnJ-_Xrw.json');
     const data = await fs.readFile(dataPath, 'utf8');
     const jsonData = JSON.parse(data);
     
-    // 1. Filter for only the short videos
     shortVideos = jsonData.videos.filter(video => video.isShort);
-    
-    // 2. Shuffle the array of short videos
-    shuffleArray(shortVideos);
+    shuffleArray(shortVideos); // Shuffle the videos
 
     console.log(`✅ Successfully loaded and shuffled ${shortVideos.length} short videos.`);
   } catch (error) {
@@ -51,25 +47,21 @@ const loadVideoData = async () => {
   }
 };
 
-// API endpoint to serve videos (now from the shuffled list)
 app.get('/api/videos', (req, res) => {
   const page = parseInt(req.query.page) || 0;
   const limit = 5;
   const startIndex = page * limit;
   const endIndex = startIndex + limit;
-
   const results = shortVideos.slice(startIndex, endIndex);
-
   res.json({
     videos: results,
     hasMore: endIndex < shortVideos.length,
   });
 });
 
-// Start the server
 app.listen(PORT, async () => {
   await loadVideoData();
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log(`🚀 Server is running on port ${PORT}`);
 });
 
 // const express = require('express');
