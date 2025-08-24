@@ -10,8 +10,7 @@ const PORT = process.env.PORT || 3000;
 // --- CORS FIX ---
 // Allow both frontend and backend domains
 const corsOptions = {
-  origin: [
-    'https://riseup-z79e.onrender.com',  // your frontend
+  origin: [  // your frontend
     'https://riseup.onrender.com'        // your backend (in case frontend is served from here too)
   ],
   optionsSuccessStatus: 200
