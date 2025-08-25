@@ -127,12 +127,6 @@ let hasMore = true;
 let currentIndex = 0;
 const feed = document.getElementById("feed");
 const loader = document.getElementById("loader");
-
-// --- API URL Configuration ---
-// This ensures the frontend calls your live backend server.
-const API_BASE_URL = 'https://riseup.onrender.com';
-// ----------------------------
-
 // Fetch videos from the server API
 async function fetchVideos(page) {
   if (isLoading || !hasMore) return;
@@ -140,7 +134,7 @@ async function fetchVideos(page) {
   loader.style.display = 'block';
 
   try {
-    const res = await fetch(`${API_BASE_URL}/api/videos?page=${page}`);
+    const res = await fetch(`https://riseup.onrender.com/api/videos?page=${page}`);
     const data = await res.json();
 
     if (data.videos.length > 0) {
