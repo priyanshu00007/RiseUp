@@ -1,60 +1,116 @@
-const express = require('express');
-const cors = require('cors');
-const fs = require('fs').promises;
-const path = require('path');
+let players = [];
+let currentPage = 0;
+let isLoading = false;
+let hasMore = true;
+let currentIndex = 0;
+const feed = document.getElementById("feed");
+const loader = document.getElementById("loader");
 
-const app = express();
-// Render provides the PORT environment variable; fall back to 3000 for local dev
-const PORT = process.env.PORT || 3000;
+async function fetchVideos(page) {
+  if (isLoading || !hasMore) return;
+  isLoading = true;
+  loader.style.display = 'block';
 
-// --- CORS Configuration for Production ---
-// This is the crucial fix that allows your frontend to talk to your backend.
-const corsOptions = {
-  origin: 'https://riseup-z79e.onrender.com', // Your frontend's live URL
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
-// -----------------------------------------
-
-// Serve all static files (HTML, CSS, JS, JSON) from the 'public' directory
-app.use(express.static('public'));
-
-let shortVideos = [];
-
-// Function to load and filter video data from the JSON file
-const loadVideoData = async () => {
   try {
-    const dataPath = path.join(__dirname, 'public', 'youtube-videos-UC7iBB0bComGROocSnJ-_Xrw.json');
-    const data = await fs.readFile(dataPath, 'utf8');
-    const jsonData = JSON.parse(data);
-    
-    // Filter for only the short videos
-    shortVideos = jsonData.videos.filter(video => video.isShort);
-    console.log(`✅ Successfully loaded and filtered ${shortVideos.length} short videos.`);
+    const res = await fetch(`https://RiseUp.onrender.com/api/videos?page=${page}`);
+    const data = await res.json();
+
+    if (data.videos.length > 0) {
+      data.videos.forEach(video => {
+        const container = document.createElement("div");
+        container.className = "video-container";
+        container.innerHTML = `
+          <div id="player-${video.id}"></div>
+          <div class="overlay"></div>
+          <div class="video-info"><h2>${video.title}</h2></div>
+          <div class="actions">
+            <div class="action"><i class="fas fa-heart"></i><span>Like</span></div>
+            <div class="action"><i class="fas fa-comment"></i><span>Comment</span></div>
+            <div class="action"><i class="fas fa-share"></i><span>Share</span></div>
+          </div>
+          <div class="progress-bar"><div class="progress" id="progress-${video.id}"></div></div>
+        `;
+        feed.appendChild(container);
+        createPlayer(video);
+      });
+      currentPage++;
+    }
+    hasMore = data.hasMore;
   } catch (error) {
-    console.error('❌ Failed to load video data:', error);
-    process.exit(1); // Stop the server if data can't be loaded
+    console.error('Failed to fetch videos:', error);
+  } finally {
+    isLoading = false;
+    loader.style.display = 'none';
   }
-};
+}
 
-// API endpoint to serve videos with pagination
-app.get('/api/videos', (req, res) => {
-  const page = parseInt(req.query.page) || 0;
-  const limit = 5; // Send 5 videos per request
-  const startIndex = page * limit;
-  const endIndex = startIndex + limit;
+function onYouTubeIframeAPIReady() {
+  fetchVideos(currentPage);
+}
 
-  const results = shortVideos.slice(startIndex, endIndex);
-
-  res.json({
-    videos: results,
-    hasMore: endIndex < shortVideos.length,
+function createPlayer(video) {
+  const player = new YT.Player(`player-${video.id}`, {
+    videoId: video.id,
+    playerVars: {
+      autoplay: 0,
+      controls: 0,
+      modestbranding: 1,
+      loop: 1,
+      playlist: video.id,
+      playsinline: 1
+    },
+    events: {
+      onReady: (e) => {
+        if (players.length === 1) {
+          e.target.playVideo();
+        }
+      },
+      onStateChange: onPlayerStateChange
+    }
   });
-});
+  players.push(player);
+}
 
-// Start the server
-app.listen(PORT, async () => {
-  await loadVideoData();
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+function onPlayerStateChange(event) {
+  const videoContainers = document.querySelectorAll('.video-container');
+  const targetPlayer = event.target;
+  let playingIndex = -1;
+
+  for (let i = 0; i < players.length; i++) {
+    if (players[i] === targetPlayer) {
+      playingIndex = i;
+      break;
+    }
+  }
+
+  if (playingIndex === -1) return;
+
+  if (event.data === YT.PlayerState.PLAYING) {
+    // Pause other videos
+    players.forEach((p, idx) => {
+      if (idx !== playingIndex && p.getPlayerState() === YT.PlayerState.PLAYING) {
+        p.pauseVideo();
+      }
+    });
+  }
+}
+
+feed.addEventListener("scroll", () => {
+  const { scrollTop, scrollHeight, clientHeight } = feed;
+  
+  // Detect which video is in view
+  const newIndex = Math.round(scrollTop / clientHeight);
+  
+  if (newIndex !== currentIndex) {
+    players[currentIndex].pauseVideo();
+    currentIndex = newIndex;
+    if (players[currentIndex]) {
+      players[currentIndex].playVideo();
+    }
+  }
+
+  // Load more videos when near the bottom
+  if (scrollTop + clientHeight >= scrollHeight - 5) {
+    fetchVideos(currentPage);
+  }
 });
