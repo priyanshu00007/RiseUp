@@ -6,136 +6,235 @@
   <title>YouTube Shorts Feed</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* Your CSS remains the same */
-    body { margin: 0; background: #000; overflow: hidden; font-family: 'Roboto', Arial, sans-serif; }
-    .feed { height: 100vh; width: 100%; overflow-y: scroll; scroll-snap-type: y mandatory; }
-    .video-container { position: relative; height: 100vh; width: 100%; scroll-snap-align: start; display: flex; justify-content: center; align-items: center; background: #000; }
-    iframe { width: 100%; height: 100%; border: none; max-width: 56.25vh; max-height: 100vw; }
-    .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent 30%); pointer-events: none; }
-    .video-info { position: absolute; bottom: 60px; left: 15px; right: 80px; color: #fff; }
-    .video-info h2 { font-size: 18px; font-weight: bold; margin: 0 0 5px 0; text-shadow: 0 0 4px rgba(0,0,0,0.5); }
-    .actions { position: absolute; bottom: 60px; right: 15px; display: flex; flex-direction: column; align-items: center; color: #fff; }
-    .actions .action { margin-bottom: 20px; text-align: center; cursor: pointer; }
-    .actions .action i { font-size: 28px; }
-    .actions .action span { display: block; font-size: 14px; margin-top: 5px; }
-    .loader { color: #fff; font-size: 20px; text-align: center; padding: 20px; width: 100%; position: absolute; bottom: 50%; }
+    body {
+  margin: 0;
+  background: #000;
+  overflow: hidden;
+  font-family: 'Roboto', Arial, sans-serif;
+}
+
+.feed {
+  height: 100vh;
+  width: 100%;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+}
+
+.video-container {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  scroll-snap-align: start;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+}
+
+iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent 30%);
+  pointer-events: none;
+}
+
+.video-info {
+  position: absolute;
+  bottom: 60px;
+  left: 15px;
+  right: 80px;
+  color: #fff;
+}
+
+.video-info h2 {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0 0 5px 0;
+  text-shadow: 0 0 4px rgba(0,0,0,0.5);
+}
+
+.actions {
+  position: absolute;
+  bottom: 60px;
+  right: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #fff;
+}
+
+.actions .action {
+  margin-bottom: 20px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.actions .action i {
+  font-size: 28px;
+}
+
+.actions .action span {
+  display: block;
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+.progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.progress {
+  width: 0;
+  height: 100%;
+  background: #f00;
+}
+
+.loader {
+  color: #fff;
+  text-align: center;
+  padding: 20px;
+  width: 100%;
+  position: absolute;
+  bottom: 20px;
+}
+
   </style>
 </head>
 <body>
   <div id="feed" class="feed"></div>
-  <div id="loader" class="loader">Loading...</div>
+  <div id="loader" class="loader" style="display: none;">Loading...</div>
 
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script>
-    const feed = document.getElementById("feed");
-    const loader = document.getElementById("loader");
-    const API_URL = 'https://riseup.onrender.com';
-
+  <script >
     let players = [];
-    let videoData = [];
-    let currentPage = 0;
-    let isLoading = false;
-    let hasMore = true;
-    let currentIndex = -1;
+let currentPage = 0;
+let isLoading = false;
+let hasMore = true;
+let currentIndex = 0;
+const feed = document.getElementById("feed");
+const loader = document.getElementById("loader");
 
-    async function fetchVideos(page) {
-      if (isLoading || !hasMore) return;
-      isLoading = true;
-      loader.style.display = 'block';
+// --- API URL Configuration ---
+// This ensures the frontend calls your live backend server.
+const API_BASE_URL = 'https://riseup.onrender.com';
+// ----------------------------
 
-      try {
-        const res = await fetch(`${API_URL}?page=${page}`);
-        const data = await res.json();
-        if (data.videos.length > 0) {
-          data.videos.forEach(video => {
-            const container = document.createElement("div");
-            container.className = "video-container";
-            container.innerHTML = `
-              <div id="player-${video.id}"></div>
-              <div class="overlay"></div>
-              <div class="video-info"><h2>${video.title}</h2></div>
-              <div class="actions">
-                <div class="action"><i class="fas fa-heart"></i><span>Like</span></div>
-                <div class="action"><i class="fas fa-comment"></i><span>Comment</span></div>
-                <div class="action"><i class="fas fa-share"></i><span>Share</span></div>
-              </div>
-            `;
-            feed.appendChild(container);
-            videoData.push(video);
-          });
-          createNextPlayer();
-          currentPage++;
-        }
-        hasMore = data.hasMore;
-        if (!hasMore) { loader.style.display = 'none'; }
-      } catch (error) {
-        console.error('Failed to fetch videos:', error);
-        loader.innerText = 'Failed to load videos. Is the server running?';
-      } finally {
-        isLoading = false;
-      }
-    }
+// Fetch videos from the server API
+async function fetchVideos(page) {
+  if (isLoading || !hasMore) return;
+  isLoading = true;
+  loader.style.display = 'block';
 
-    function onYouTubeIframeAPIReady() {
-      fetchVideos(currentPage);
-    }
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/videos?page=${page}`);
+    const data = await res.json();
 
-    function createPlayer(video) {
-      const player = new YT.Player(`player-${video.id}`, {
-        videoId: video.id,
-        playerVars: {
-          autoplay: 0,
-          controls: 0,
-          modestbranding: 1,
-          loop: 1,
-          playlist: video.id,
-          playsinline: 1,
-          origin: window.location.origin
-        },
-        events: {
-          onReady: onPlayerReady,
-        }
+    if (data.videos.length > 0) {
+      data.videos.forEach(video => {
+        const container = document.createElement("div");
+        container.className = "video-container";
+        container.innerHTML = `
+          <div id="player-${video.id}"></div>
+          <div class="overlay"></div>
+          <div class="video-info"><h2>${video.title}</h2></div>
+          <div class="actions">
+            <div class="action"><i class="fas fa-heart"></i><span>Like</span></div>
+            <div class="action"><i class="fas fa-comment"></i><span>Comment</span></div>
+            <div class="action"><i class="fas fa-share"></i><span>Share</span></div>
+          </div>
+          <div class="progress-bar"><div class="progress" id="progress-${video.id}"></div></div>
+        `;
+        feed.appendChild(container);
+        createPlayer(video);
       });
-      players.push(player);
+      currentPage++;
     }
+    hasMore = data.hasMore;
+  } catch (error) {
+    console.error('Failed to fetch videos:', error);
+  } finally {
+    isLoading = false;
+    loader.style.display = 'none';
+  }
+}
 
-    function onPlayerReady(event) {
-        // --- FIX: Corrected casing for unMute() ---
-        event.target.unMute(); 
+// This function is called by the YouTube IFrame API when it's ready
+function onYouTubeIframeAPIReady() {
+  fetchVideos(currentPage);
+}
+
+function createPlayer(video) {
+  const player = new YT.Player(`player-${video.id}`, {
+    videoId: video.id,
+    playerVars: {
+      autoplay: 0,
+      controls: 0,
+      modestbranding: 1,
+      loop: 1,
+      playlist: video.id,
+      playsinline: 1
+    },
+    events: {
+      onReady: (e) => {
         if (players.length === 1) {
-            currentIndex = 0;
-            // --- FIX: Corrected casing for playVideo() ---
-            players[0].playVideo();
-            loader.style.display = 'none';
+          e.target.playVideo();
         }
+      },
+      onStateChange: onPlayerStateChange
     }
-    
-    feed.addEventListener("scroll", () => {
-      const { scrollTop, scrollHeight, clientHeight } = feed;
-      const newIndex = Math.round(scrollTop / clientHeight);
+  });
+  players.push(player);
+}
 
-      if (newIndex !== currentIndex && players[newIndex]) {
-        if (players[currentIndex]) {
-          players[currentIndex].pauseVideo();
-        }
-        currentIndex = newIndex;
-        const newPlayer = players[currentIndex];
+function onPlayerStateChange(event) {
+    if (event.data === YT.PlayerState.PLAYING) {
+        const targetPlayer = event.target;
+        const playingIndex = players.findIndex(p => p === targetPlayer);
         
-        // --- FIX: Corrected casing for unMute() and playVideo() ---
-        newPlayer.unMute();
-        newPlayer.playVideo();
-      }
+        players.forEach((p, idx) => {
+            if (idx !== playingIndex && p.getPlayerState() === YT.PlayerState.PLAYING) {
+                p.pauseVideo();
+            }
+        });
+    }
+}
 
-      if (videoData.length > players.length) {
-        createNextPlayer();
-      }
+// Handle scrolling to play/pause and load more videos
+feed.addEventListener("scroll", () => {
+  const { scrollTop, scrollHeight, clientHeight } = feed;
+  
+  const newIndex = Math.round(scrollTop / clientHeight);
+  
+  if (newIndex !== currentIndex) {
+    if (players[currentIndex]) {
+        players[currentIndex].pauseVideo();
+    }
+    currentIndex = newIndex;
+    if (players[currentIndex]) {
+      players[currentIndex].playVideo();
+    }
+  }
 
-      if (scrollTop + clientHeight >= scrollHeight - clientHeight / 2) {
-        fetchVideos(currentPage);
-      }
-    });
+  // Load more videos when user scrolls near the end
+  if (scrollTop + clientHeight >= scrollHeight - 50) {
+    fetchVideos(currentPage);
+  }
+});
 
-    function createNextPlayer() { if (players.length < videoData.length) { createPlayer(videoData[players.length]); } }
   </script>
 </body>
 </html>
