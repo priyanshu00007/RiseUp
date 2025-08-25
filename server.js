@@ -1,67 +1,67 @@
 const express = require('express');
-const cors = require('cors'); // You already have this installed
+const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- FIX FOR CORS ---
-// Define the specific URL of your frontend application
+// Allow requests only from your frontend domain for better security
 const allowedOrigins = ['https://riseup-z79e.onrender.com'];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Check if the incoming origin is in our list of allowed origins
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    // Allow requests with no origin (like mobile apps or curl) or from allowed origins
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error('CORS policy: Not allowed by CORS'));
     }
-  }
+  },
+  methods: ['GET'],
+  optionsSuccessStatus: 200,
 };
 
-// Use the configured CORS options
+// Apply CORS middleware globally with options
 app.use(cors(corsOptions));
 
-// This part serves your static files (HTML, etc.)
-app.use(express.static('public'));
+// Serve static files (like your frontend files and JSON data) from 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
 
 let shortVideos = [];
 
-// The rest of your server code remains the same...
+// Load and cache video data at startup
 const loadVideoData = async () => {
-    try {
-        const dataPath = path.join(__dirname, 'public', 'youtube-videos-UC7iBB0bComGROocSnJ-_Xrw.json');
-        const data = await fs.readFile(dataPath, 'utf8');
-        const jsonData = JSON.parse(data);
-        
-        shortVideos = jsonData.videos.filter(video => video.isShort);
-        console.log(`✅ Successfully loaded and filtered ${shortVideos.length} short videos.`);
-    } catch (error) {
-        console.error('❌ Failed to load video data:', error);
-        process.exit(1);
-    }
+  try {
+    const dataPath = path.join(__dirname, 'public', 'youtube-videos-UC7iBB0bComGROocSnJ-_Xrw.json');
+    const data = await fs.readFile(dataPath, 'utf8');
+    const jsonData = JSON.parse(data);
+    shortVideos = jsonData.videos.filter(video => video.isShort);
+    console.log(`✅ Loaded ${shortVideos.length} short videos.`);
+  } catch (err) {
+    console.error('❌ Error loading video data:', err);
+    process.exit(1);
+  }
 };
 
+// API route to get paginated list of short videos
 app.get('/api/videos', (req, res) => {
-    const page = parseInt(req.query.page) || 0;
-    const limit = 5;
-    const startIndex = page * limit;
-    const endIndex = startIndex + limit;
+  const page = parseInt(req.query.page, 10) || 0;
+  const limit = 5; // videos per page
+  const startIndex = page * limit;
+  const paginatedVideos = shortVideos.slice(startIndex, startIndex + limit);
 
-    const results = shortVideos.slice(startIndex, endIndex);
-
-    res.json({
-        videos: results,
-        hasMore: endIndex < shortVideos.length,
-    });
+  res.json({
+    videos: paginatedVideos,
+    hasMore: startIndex + limit < shortVideos.length,
+  });
 });
 
 app.listen(PORT, async () => {
-    await loadVideoData();
-    console.log(`🚀 Server is running on port ${PORT}`);
+  await loadVideoData();
+  console.log(`🚀 Server listening on port ${PORT}`);
 });
+
 
 // const express = require('express');
 // const cors = require('cors');
