@@ -7,8 +7,16 @@ const app = express();
 const PORT = 3000;
 
 // Middleware
-app.use(cors()); // Enable Cross-Origin Resource Sharing
-app.use(express.static('public')); // Serve static files from the 'public' directory
+app.use(cors({
+  origin: "https://riseup-z79e.onrender.com", // frontend domain
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type"]
+}));
+
+// Example route
+app.get("/api/videos", (req, res) => {
+  res.json({ msg: "CORS working now" });
+});
 
 let shortVideos = [];
 
